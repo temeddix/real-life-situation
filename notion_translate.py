@@ -212,25 +212,31 @@ class Converter:
         self.source_language = source_language
         self.target_language = target_language
 
-    def handle_page_block(self, page_id):
+    def handle_page_block(self, page_id, create_translation):
 
         source_text = self.notion_client.get_title_text(page_id)
         source_text = source_text.strip()
         division_text = f" {COMPLETION_MARK} "
 
-        if COMPLETION_MARK in source_text:
-            return source_text
+        if create_translation:
+            if COMPLETION_MARK in source_text:
+                return source_text
 
-        converted_text = self.translate_client.translate(
-            source_text,
-            self.source_language,
-            self.target_language,
-        )
-        converted_text = f"{converted_text}{division_text}{source_text}"
+            converted_text = self.translate_client.translate(
+                source_text,
+                self.source_language,
+                self.target_language,
+            )
+            converted_text = f"{converted_text}{division_text}{source_text}"
 
-        self.notion_client.update_title(page_id, converted_text)
+            self.notion_client.update_title(page_id, converted_text)
 
-    def handle_normal_block(self, block, realtime):
+        else:
+            if COMPLETION_MARK in source_text:
+                converted_text = source_text.split(COMPLETION_MARK)[1].strip()
+                self.notion_client.update_title(page_id, converted_text)
+
+    def handle_normal_block(self, block, realtime, create_translation):
 
         if realtime:
             time_format = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -246,83 +252,101 @@ class Converter:
             return
 
         if block["type"] in INLINE_TYPES:
-            if COMPLETION_MARK in source_text:
-                return
-            mark_text = f" {COMPLETION_MARK} "
-            translated = self.translate_client.translate(
-                source_text,
-                self.source_language,
-                self.target_language,
-            )
-            block[block["type"]]["rich_text"] += [
-                {
-                    "type": "text",
-                    "text": {"content": mark_text},
-                },
-                {
-                    "type": "text",
-                    "text": {"content": translated},
-                },
-            ]
-            self.notion_client.update_block(block["id"], block)
+            if create_translation:
+                if COMPLETION_MARK in source_text:
+                    return
+                mark_text = f" {COMPLETION_MARK} "
+                translated = self.translate_client.translate(
+                    source_text,
+                    self.source_language,
+                    self.target_language,
+                )
+                block[block["type"]]["rich_text"] += [
+                    {
+                        "type": "text",
+                        "text": {"content": mark_text},
+                    },
+                    {
+                        "type": "text",
+                        "text": {"content": translated},
+                    },
+                ]
+                self.notion_client.update_block(block["id"], block)
+            else:
+                if COMPLETION_MARK in source_text:
+                    for turn, item in enumerate(block[block["type"]]["rich_text"]):
+                        if COMPLETION_MARK in item["text"]["content"]:
+                            originals = block[block["type"]]["rich_text"]
+                            block[block["type"]]["rich_text"] = originals[:turn]
+                    self.notion_client.update_block(block["id"], block)
 
-        mark_text = f" {COMPLETION_MARK} {len(source_text):04}"
+        else:
+            mark_text = f" {COMPLETION_MARK} {len(source_text):04}"
 
-        before_translation_child = None
-        before_source_text_length = 0
-        children = self.notion_client.get_blocks(block["id"], False)
-        for child in children:
-            child_text = self.notion_client.get_block_text(child)
-            if COMPLETION_MARK in child_text:
-                if before_translation_child is None:
-                    before_translation_child = child
-                    splitted_texts = child_text.split(COMPLETION_MARK)
-                    before_source_text_length = int(splitted_texts[-1].strip())
+            before_translation_child = None
+            before_source_text_length = 0
+            children = self.notion_client.get_blocks(block["id"], False)
+
+            if create_translation:
+                for child in children:
+                    child_text = self.notion_client.get_block_text(child)
+                    if COMPLETION_MARK in child_text:
+                        if before_translation_child is None:
+                            before_translation_child = child
+                            splitted_texts = child_text.split(COMPLETION_MARK)
+                            before_source_text_length = int(splitted_texts[-1].strip())
+                        else:
+                            self.notion_client.delete_block(child["id"])
+
+                if before_translation_child is not None:
+                    if len(source_text) == before_source_text_length:
+                        return
+
+                if before_translation_child is not None:
+                    new_translation_child = before_translation_child
                 else:
-                    self.notion_client.delete_block(child["id"])
+                    new_translation_child = copy.deepcopy(block)
 
-        if before_translation_child is not None:
-            if len(source_text) == before_source_text_length:
-                return
+                translated = self.translate_client.translate(
+                    source_text,
+                    self.source_language,
+                    self.target_language,
+                )
+                maximum_content_length = MAX_TEXT_LENGTH - len(mark_text)
+                if len(translated) > maximum_content_length:
+                    translated = translated[:maximum_content_length]
+                final_text = translated + mark_text
+                new_translation_child[new_translation_child["type"]]["rich_text"] = [
+                    {
+                        "type": "text",
+                        "text": {"content": final_text},
+                    },
+                ]
 
-        if before_translation_child is not None:
-            new_translation_child = before_translation_child
-        else:
-            new_translation_child = copy.deepcopy(block)
+                if before_translation_child is not None:
+                    payload = new_translation_child
+                    self.notion_client.update_block(
+                        before_translation_child["id"], payload
+                    )
+                else:
+                    payload = {"children": [new_translation_child]}
+                    self.notion_client.append_block_children(block["id"], payload)
+            else:
+                for child in children:
+                    child_text = self.notion_client.get_block_text(child)
+                    if COMPLETION_MARK in child_text:
+                        self.notion_client.delete_block(child["id"])
 
-        translated = self.translate_client.translate(
-            source_text,
-            self.source_language,
-            self.target_language,
-        )
-        maximum_content_length = MAX_TEXT_LENGTH - len(mark_text)
-        if len(translated) > maximum_content_length:
-            translated = translated[:maximum_content_length]
-        final_text = translated + mark_text
-        new_translation_child[new_translation_child["type"]]["rich_text"] = [
-            {
-                "type": "text",
-                "text": {"content": final_text},
-            },
-        ]
-
-        if before_translation_child is not None:
-            payload = new_translation_child
-            self.notion_client.update_block(before_translation_child["id"], payload)
-        else:
-            payload = {"children": [new_translation_child]}
-            self.notion_client.append_block_children(block["id"], payload)
-
-    def convert_page(self, page_id, include_subpages, realtime):
+    def convert_page(self, page_id, include_subpages, realtime, create_translation):
         task_start_time = datetime.now(timezone.utc)
 
         page_blocks = self.notion_client.get_blocks(page_id, include_subpages)
 
         for block in page_blocks:
             if block["type"] == "child_page":
-                self.handle_page_block(block["id"])
+                self.handle_page_block(block["id"], create_translation)
             else:
-                self.handle_normal_block(block, realtime)
+                self.handle_normal_block(block, realtime, create_translation)
 
         duration = datetime.now(timezone.utc) - task_start_time
         duration_seconds = duration.total_seconds()
@@ -357,14 +381,21 @@ if __name__ == "__main__":
 
     answer = input("\nEnter the Notion page URL\n")
     root_page_id = str(answer).split("/")[-1].split("-")[-1]
-    answer = input("\nEnter the source language for translation (en/ko/ru/jp...)\n")
-    source_language = str(answer).lower().strip()
-    answer = input("\nEnter the target language for translation (en/ko/ru/jp...)\n")
-    target_language = str(answer).lower().strip()
+    answer = input("\nWill you create translations, or remove them? (c/r)\n")
+    create_translation = True if str(answer).lower().strip() == "c" else False
+    if create_translation:
+        answer = input("\nEnter the source language for translation (en/ko/ru/jp...)\n")
+        source_language = str(answer).lower().strip()
+        answer = input("\nEnter the target language for translation (en/ko/ru/jp...)\n")
+        target_language = str(answer).lower().strip()
+        answer = input("\nShould this translate in realtime and keep running? (y/n)\n")
+        realtime = True if str(answer).lower().strip() == "y" else False
+    else:
+        source_language = None
+        target_language = None
+        realtime = False
     answer = input("\nWill you include subpages? (y/n)\n")
     include_subpages = True if str(answer).lower().strip() == "y" else False
-    answer = input("\nShould this translate in realtime and keep running? (y/n)\n")
-    realtime = True if str(answer).lower().strip() == "y" else False
 
     print("")
 
@@ -381,6 +412,7 @@ if __name__ == "__main__":
                 root_page_id,
                 include_subpages,
                 realtime,
+                create_translation,
             )
             time.sleep(30)
     else:
@@ -388,4 +420,5 @@ if __name__ == "__main__":
             root_page_id,
             include_subpages,
             realtime,
+            create_translation,
         )
