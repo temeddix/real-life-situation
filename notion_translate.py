@@ -2,11 +2,10 @@ from datetime import datetime, timezone, timedelta
 import copy
 import time
 import json
+import pathlib
 
 import requests
 from requests.adapters import HTTPAdapter, Retry
-
-NOTE_PATH = "./note.json"
 
 MAX_TEXT_LENGTH = 2000
 COMPLETION_MARK = "⚐"
@@ -335,6 +334,7 @@ class Converter:
                 for child in children:
                     child_text = self.notion_client.get_block_text(child)
                     if COMPLETION_MARK in child_text:
+                        print(f"{child_text}\n")
                         self.notion_client.delete_block(child["id"])
 
     def convert_page(self, page_id, include_subpages, realtime, create_translation):
@@ -356,8 +356,11 @@ class Converter:
 
 if __name__ == "__main__":
 
+    note_path = f"{pathlib.Path(__file__).parent.resolve()}/note.json"
+    print(note_path)
+
     try:
-        with open(NOTE_PATH, "r", encoding="utf8") as file:
+        with open(note_path, "r", encoding="utf8") as file:
             note = json.load(file)
     except FileNotFoundError:
         note = {}
@@ -373,7 +376,7 @@ if __name__ == "__main__":
         is_note_modified = True
 
     if is_note_modified:
-        with open(NOTE_PATH, "w", encoding="utf8") as file:
+        with open(note_path, "w", encoding="utf8") as file:
             json.dump(note, file, indent=4)
 
     google_cloud_api_key = note["googleCloudApiKey"]
