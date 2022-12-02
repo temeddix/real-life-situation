@@ -357,7 +357,6 @@ class Converter:
 if __name__ == "__main__":
 
     note_path = f"{pathlib.Path(__file__).parent.resolve()}/note.json"
-    print(note_path)
 
     try:
         with open(note_path, "r", encoding="utf8") as file:
