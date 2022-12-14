@@ -342,6 +342,8 @@ class Converter:
 
         page_blocks = self.notion_client.get_blocks(page_id, include_subpages)
 
+        self.handle_page_block(page_id, create_translation)
+
         for block in page_blocks:
             if block["type"] == "child_page":
                 self.handle_page_block(block["id"], create_translation)
