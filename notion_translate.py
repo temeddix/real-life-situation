@@ -3,7 +3,7 @@ import copy
 import time
 import json
 import pathlib
-import typing as ty
+from typing import Any, Optional
 
 import requests
 from requests.adapters import HTTPAdapter, Retry
@@ -59,8 +59,8 @@ class TranslatorClient:
     def translate(
         self,
         text: str,
-        source_language: ty.Optional[str],
-        target_language: ty.Optional[str],
+        source_language: Optional[str],
+        target_language: Optional[str],
     ):
         url = "https://translation.googleapis.com/language/translate/v2"
 
@@ -131,8 +131,8 @@ class NotionClient:
     def get_some_blocks(
         self,
         block_id: str,
-        start_cursor: ty.Optional[str] = None,
-        page_size: ty.Optional[str] = None,
+        start_cursor: Optional[str] = None,
+        page_size: Optional[str] = None,
     ):
         url = f"https://api.notion.com/v1/blocks/{block_id}/children"
         params = {}
@@ -146,7 +146,7 @@ class NotionClient:
             print(f"HTTP {raw_response.status_code}: {response['message']}\n")
         return response
 
-    def get_blocks(self, block_id: str, include_subpages: bool) -> list[ty.Any]:
+    def get_blocks(self, block_id: str, include_subpages: bool) -> list[Any]:
         blocks_response = self.get_some_blocks(block_id)
         blocks = blocks_response.get("results")
         if blocks is None:
@@ -163,20 +163,20 @@ class NotionClient:
         print(f"Found {len(blocks)} blocks\n")
         return blocks
 
-    def get_text(self, rich_text_object: dict[str, ty.Any]):
+    def get_text(self, rich_text_object: dict[str, Any]):
         # Concatenates a rich text array into plain text
         text = ""
         for rt in rich_text_object["rich_text"]:
             text += rt["plain_text"]
         return text
 
-    def get_block_text(self, block: dict[str, ty.Any]):
+    def get_block_text(self, block: dict[str, Any]):
         if block["type"] in RICH_TEXT_TYPES:
             return self.get_text(block[block["type"]])
         else:
             return ""
 
-    def update_block(self, block_id: str, payload: dict[str, ty.Any]):
+    def update_block(self, block_id: str, payload: dict[str, Any]):
         url = f"https://api.notion.com/v1/blocks/{block_id}"
         raw_response = self.session.patch(url, json=payload)
         response = raw_response.json()
@@ -190,7 +190,7 @@ class NotionClient:
         if raw_response.status_code != 200:
             print(f"HTTP {raw_response.status_code}: {response['message']}\n")
 
-    def append_block_children(self, block_id: str, payload: dict[str, ty.Any]):
+    def append_block_children(self, block_id: str, payload: dict[str, Any]):
         url = f"https://api.notion.com/v1/blocks/{block_id}/children"
         raw_response = self.session.patch(url, json=payload)
         response = raw_response.json()
@@ -213,8 +213,8 @@ class NotionClient:
 class Converter:
     def __init__(
         self,
-        source_language: ty.Optional[str],
-        target_language: ty.Optional[str],
+        source_language: Optional[str],
+        target_language: Optional[str],
         google_cloud_api_key: str,
         notion_api_key: str,
     ):
@@ -249,7 +249,7 @@ class Converter:
 
     def handle_normal_block(
         self,
-        block: dict[str, ty.Any],
+        block: dict[str, Any],
         realtime: bool,
         create_translation: bool,
     ):
@@ -411,8 +411,8 @@ if __name__ == "__main__":
     answer = input("\nWill you create translations, or remove them? (c/r)\n")
     create_translation = True if str(answer).lower().strip() == "c" else False
 
-    source_language: ty.Optional[str]
-    target_language: ty.Optional[str]
+    source_language: Optional[str]
+    target_language: Optional[str]
     if create_translation:
         answer = input("\nEnter the source language for translation (en/ko/ru/jp...)\n")
         source_language = str(answer).lower().strip()
