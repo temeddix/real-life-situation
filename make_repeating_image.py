@@ -23,8 +23,9 @@ chunk = np.array(
 
 vertical_repeat = math.ceil(IMAGE_HEIGHT / chunk.shape[0])
 horizontal_repeat = math.ceil(IMAGE_WIDTH / chunk.shape[1])
-big_repeated_image = np.tile(chunk, reps=(vertical_repeat, horizontal_repeat, 1))
-color_converted_image = cv2.cvtColor(np.float32(big_repeated_image), cv2.COLOR_RGB2BGR)
+big_repeated_image = np.tile(chunk, reps=(vertical_repeat, horizontal_repeat, 1))  # type: ignore
+big_repeated_matrix = cv2.Mat(big_repeated_image)
+color_converted_image = cv2.cvtColor(big_repeated_matrix, cv2.COLOR_RGB2BGR)
 cut_image = color_converted_image[:IMAGE_HEIGHT, :IMAGE_WIDTH]
 
 os.makedirs("./basket", exist_ok=True)

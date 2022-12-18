@@ -3,6 +3,7 @@ import copy
 import time
 import json
 import pathlib
+import typing as ty
 
 import requests
 from requests.adapters import HTTPAdapter, Retry
@@ -37,7 +38,7 @@ ALLOWED_HTTP_METHODS = (
 
 
 class TranslatorClient:
-    def __init__(self, google_cloud_api_key):
+    def __init__(self, google_cloud_api_key: str):
         self.default_headers = {
             "Content-type": "application/json",
         }
@@ -55,7 +56,12 @@ class TranslatorClient:
 
         self.google_cloud_api_key = google_cloud_api_key
 
-    def translate(self, text, source_language, target_language):
+    def translate(
+        self,
+        text: str,
+        source_language: ty.Optional[str],
+        target_language: ty.Optional[str],
+    ):
         url = "https://translation.googleapis.com/language/translate/v2"
 
         # Specify Query Parameters
@@ -79,6 +85,7 @@ class TranslatorClient:
             print(raw_response.request.headers)
             print(text)
             print(raw_response._content)
+            raise ConnectionError
 
         if raw_response.status_code != 200:
             print(f"HTTP {raw_response.status_code}: {response['error']['details']}\n")
@@ -92,7 +99,7 @@ class TranslatorClient:
 
 
 class NotionClient:
-    def __init__(self, notion_api_key):
+    def __init__(self, notion_api_key: str):
         self.default_headers = {
             "Authorization": f"Bearer {notion_api_key}",
             "Content-Type": "application/json",
@@ -109,7 +116,7 @@ class NotionClient:
         self.session.mount("http://", HTTPAdapter(max_retries=retry))
         self.session.mount("https://", HTTPAdapter(max_retries=retry))
 
-    def get_property(self, page_id, property_id):
+    def get_property(self, page_id: str, property_id: str):
         url = f"https://api.notion.com/v1/pages/{page_id}/properties/{property_id}"
         raw_response = self.session.get(url)
         response = raw_response.json()
@@ -117,11 +124,16 @@ class NotionClient:
             print(f"HTTP {raw_response.status_code}: {response['message']}\n")
         return response
 
-    def get_title_text(self, page_id):
+    def get_title_text(self, page_id: str):
         title_property = self.get_property(page_id, "title")["results"][0]
         return title_property["title"]["plain_text"]
 
-    def get_some_blocks(self, block_id, start_cursor=None, page_size=None):
+    def get_some_blocks(
+        self,
+        block_id: str,
+        start_cursor: ty.Optional[str] = None,
+        page_size: ty.Optional[str] = None,
+    ):
         url = f"https://api.notion.com/v1/blocks/{block_id}/children"
         params = {}
         if start_cursor is not None:
@@ -134,7 +146,7 @@ class NotionClient:
             print(f"HTTP {raw_response.status_code}: {response['message']}\n")
         return response
 
-    def get_blocks(self, block_id, include_subpages):
+    def get_blocks(self, block_id: str, include_subpages: bool) -> list[ty.Any]:
         blocks_response = self.get_some_blocks(block_id)
         blocks = blocks_response.get("results")
         if blocks is None:
@@ -151,41 +163,41 @@ class NotionClient:
         print(f"Found {len(blocks)} blocks\n")
         return blocks
 
-    def get_text(self, rich_text_object):
+    def get_text(self, rich_text_object: dict[str, ty.Any]):
         # Concatenates a rich text array into plain text
         text = ""
         for rt in rich_text_object["rich_text"]:
             text += rt["plain_text"]
         return text
 
-    def get_block_text(self, block):
+    def get_block_text(self, block: dict[str, ty.Any]):
         if block["type"] in RICH_TEXT_TYPES:
             return self.get_text(block[block["type"]])
         else:
             return ""
 
-    def update_block(self, block_id, payload):
+    def update_block(self, block_id: str, payload: dict[str, ty.Any]):
         url = f"https://api.notion.com/v1/blocks/{block_id}"
         raw_response = self.session.patch(url, json=payload)
         response = raw_response.json()
         if raw_response.status_code != 200:
             print(f"HTTP {raw_response.status_code}: {response['message']}\n")
 
-    def delete_block(self, block_id):
+    def delete_block(self, block_id: str):
         url = f"https://api.notion.com/v1/blocks/{block_id}"
         raw_response = self.session.delete(url)
         response = raw_response.json()
         if raw_response.status_code != 200:
             print(f"HTTP {raw_response.status_code}: {response['message']}\n")
 
-    def append_block_children(self, block_id, payload):
+    def append_block_children(self, block_id: str, payload: dict[str, ty.Any]):
         url = f"https://api.notion.com/v1/blocks/{block_id}/children"
         raw_response = self.session.patch(url, json=payload)
         response = raw_response.json()
         if raw_response.status_code != 200:
             print(f"HTTP {raw_response.status_code}: {response['message']}\n")
 
-    def update_title(self, page_id, title):
+    def update_title(self, page_id: str, title: str):
         url = f"https://api.notion.com/v1/pages/{page_id}"
         payload = {
             "properties": {
@@ -201,17 +213,17 @@ class NotionClient:
 class Converter:
     def __init__(
         self,
-        source_language,
-        target_language,
-        google_cloud_api_key,
-        notion_api_key,
+        source_language: ty.Optional[str],
+        target_language: ty.Optional[str],
+        google_cloud_api_key: str,
+        notion_api_key: str,
     ):
         self.notion_client = NotionClient(notion_api_key)
         self.translate_client = TranslatorClient(google_cloud_api_key)
         self.source_language = source_language
         self.target_language = target_language
 
-    def handle_page_block(self, page_id, create_translation):
+    def handle_page_block(self, page_id: str, create_translation: bool):
 
         source_text = self.notion_client.get_title_text(page_id)
         source_text = source_text.strip()
@@ -235,7 +247,12 @@ class Converter:
                 converted_text = source_text.split(COMPLETION_MARK)[1].strip()
                 self.notion_client.update_title(page_id, converted_text)
 
-    def handle_normal_block(self, block, realtime, create_translation):
+    def handle_normal_block(
+        self,
+        block: dict[str, ty.Any],
+        realtime: bool,
+        create_translation: bool,
+    ):
 
         if realtime:
             time_format = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -337,7 +354,13 @@ class Converter:
                         print(f"{child_text}\n")
                         self.notion_client.delete_block(child["id"])
 
-    def convert_page(self, page_id, include_subpages, realtime, create_translation):
+    def convert_page(
+        self,
+        page_id: str,
+        include_subpages: bool,
+        realtime: bool,
+        create_translation: bool,
+    ):
         task_start_time = datetime.now(timezone.utc)
 
         page_blocks = self.notion_client.get_blocks(page_id, include_subpages)
@@ -380,13 +403,16 @@ if __name__ == "__main__":
         with open(note_path, "w", encoding="utf8") as file:
             json.dump(note, file, indent=4)
 
-    google_cloud_api_key = note["googleCloudApiKey"]
-    notion_api_key = note["notionApiKey"]
+    google_cloud_api_key: str = note["googleCloudApiKey"]
+    notion_api_key: str = note["notionApiKey"]
 
     answer = input("\nEnter the Notion page URL\n")
     root_page_id = str(answer).split("/")[-1].split("-")[-1]
     answer = input("\nWill you create translations, or remove them? (c/r)\n")
     create_translation = True if str(answer).lower().strip() == "c" else False
+
+    source_language: ty.Optional[str]
+    target_language: ty.Optional[str]
     if create_translation:
         answer = input("\nEnter the source language for translation (en/ko/ru/jp...)\n")
         source_language = str(answer).lower().strip()
@@ -398,6 +424,7 @@ if __name__ == "__main__":
         source_language = None
         target_language = None
         realtime = False
+
     answer = input("\nWill you include subpages? (y/n)\n")
     include_subpages = True if str(answer).lower().strip() == "y" else False
 
