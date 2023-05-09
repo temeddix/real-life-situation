@@ -1,6 +1,6 @@
 # Command line scripts
 
-Install dependencies written in `pyproject.toml` from PYPI
+Install dependencies written in `pyproject.toml`
 
 ```
 pip install .
