@@ -4,8 +4,8 @@ Type hints should be provided for the maintainability of the code. Turn on stric
 
 # Command line scripts
 
-Install packages written in `requirements.txt` from PYPI
+Install dependencies written in `pyproject.toml` from PYPI
 
 ```
-pip install -r ./requirements.txt
+pip install .
 ```
