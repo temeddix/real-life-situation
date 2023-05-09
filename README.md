@@ -1,7 +1,7 @@
 # Command line scripts
 
-Install dependencies written in `pyproject.toml`
+Install Python packages written in `requirements.txt`
 
 ```
-pip install .
+pip install -r ./requirements.txt
 ```
