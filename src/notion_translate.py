@@ -224,7 +224,6 @@ class Converter:
         self.target_language = target_language
 
     def handle_page_block(self, page_id: str, create_translation: bool):
-
         source_text = self.notion_client.get_title_text(page_id)
         source_text = source_text.strip()
         division_text = f" {COMPLETION_MARK} "
@@ -253,7 +252,6 @@ class Converter:
         realtime: bool,
         create_translation: bool,
     ):
-
         if realtime:
             time_format = "%Y-%m-%dT%H:%M:%S.000Z"
             last_edited_time = datetime.strptime(block["last_edited_time"], time_format)
@@ -380,7 +378,6 @@ class Converter:
 
 
 if __name__ == "__main__":
-
     note_path = f"{pathlib.Path(__file__).parent.resolve()}/note.json"
 
     try:
