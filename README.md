@@ -1,4 +1,4 @@
-# Command line scripts
+# Command Line Scripts
 
 Install Python packages written in `requirements.txt`
 
