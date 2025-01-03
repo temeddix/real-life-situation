@@ -1,7 +1,9 @@
-# Command Line Scripts
+## Preparation
 
-Install Python packages written in `requirements.txt`
+Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/), a modern Python package manager.
+
+## Command Line Scripts
 
 ```
-pip install -r ./requirements.txt
+uv run <file_name_with_py>
 ```
