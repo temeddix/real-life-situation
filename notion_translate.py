@@ -135,7 +135,7 @@ class NotionClient:
         page_size: Optional[str] = None,
     ):
         url = f"https://api.notion.com/v1/blocks/{block_id}/children"
-        params = {}
+        params: dict[str, str] = {}
         if start_cursor is not None:
             params["start_cursor"] = start_cursor
         if page_size is not None:
@@ -384,7 +384,7 @@ if __name__ == "__main__":
         with open(note_path, "r", encoding="utf8") as file:
             note = json.load(file)
     except FileNotFoundError:
-        note = {}
+        note: dict[str, str] = {}
 
     is_note_modified = False
     if "googleCloudApiKey" not in note.keys():
@@ -400,8 +400,8 @@ if __name__ == "__main__":
         with open(note_path, "w", encoding="utf8") as file:
             json.dump(note, file, indent=4)
 
-    google_cloud_api_key: str = note["googleCloudApiKey"]
-    notion_api_key: str = note["notionApiKey"]
+    google_cloud_api_key = note["googleCloudApiKey"]
+    notion_api_key = note["notionApiKey"]
 
     answer = input("\nEnter the Notion page URL\n")
     root_page_id = str(answer).split("/")[-1].split("-")[-1]
