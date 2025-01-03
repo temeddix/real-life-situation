@@ -81,7 +81,7 @@ class TranslatorClient:
         raw_response = self.session.post(url, params=params, json=body)
         try:
             response = raw_response.json()
-        except:
+        except Exception:
             print(raw_response.request.headers)
             print(text)
             print(raw_response._content)

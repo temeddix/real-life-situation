@@ -5,7 +5,7 @@ import glob
 folder_path = input("Enter the folder path: ")
 
 # Find all shp files in the folder
-shp_files = glob.glob(os.path.join(folder_path, f"*"))
+shp_files = glob.glob(os.path.join(folder_path, "*"))
 
 # Loop through the shp files and convert the encoding
 for file_path in shp_files:
