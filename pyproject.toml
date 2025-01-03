@@ -11,3 +11,6 @@ dependencies = [
 
 [tool.pyright]
 typeCheckingMode = "strict"
+
+[tool.ruff.lint]
+extend-select = ["E", "F", "N", "I", "SLF", "INP", "ASYNC"]

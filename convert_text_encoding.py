@@ -1,5 +1,5 @@
-import os
 import glob
+import os
 
 # Get the folder path from the user
 folder_path = input("Enter the folder path: ")

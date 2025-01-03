@@ -1,7 +1,8 @@
 import math
 import os
-import numpy as np
+
 import cv2
+import numpy as np
 
 IMAGE_WIDTH = 1920
 IMAGE_HEIGHT = 1080

@@ -1,8 +1,8 @@
-from datetime import datetime, timezone, timedelta
 import copy
-import time
 import json
 import pathlib
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import requests
@@ -84,7 +84,7 @@ class TranslatorClient:
         except Exception:
             print(raw_response.request.headers)
             print(text)
-            print(raw_response._content)
+            print(raw_response.content)
             raise ConnectionError
 
         if raw_response.status_code != 200:
